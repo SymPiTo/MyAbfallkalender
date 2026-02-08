@@ -1,31 +1,33 @@
 {
   "elements": [
     {
-      "type": "ValidationTextBox",
-      "name": "RemoteFile",
-      "caption": "Pfad zur ICS-Datei auf dem Windows-Rechner",
-      "width": "600px"
+      "type": "Label",
+      "caption": "Bitte kopiere deine ICS-Datei manuell in folgenden Ordner:"
     },
     {
       "type": "Label",
-      "caption": "Beispiel: \\\\WINPC\\Abfall\\heidelberg.ics"
+      "caption": "/var/lib/symcon/modules/MyAbfallkalender/Abfallkalender/"
     },
     {
       "type": "ValidationTextBox",
-      "name": "LocalFile",
-      "caption": "Lokaler Speicherpfad in Symcon",
-      "width": "600px"
+      "name": "FileName",
+      "caption": "Dateiname der ICS-Datei",
+      "width": "400px"
     },
     {
       "type": "Label",
-      "caption": "Beispiel: /var/lib/symcon/modules/Torsten.HeidelbergAbfall/abfall.ics"
+      "caption": "Beispiel: Abfallkalender2026.ics"
     }
   ],
   "actions": [
     {
       "type": "Button",
-      "caption": "ICS jetzt holen und verarbeiten",
+      "caption": "ICS jetzt verarbeiten",
       "onClick": "HDABF_Update($id);"
     }
   ]
 }
+
+
+
+

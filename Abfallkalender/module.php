@@ -6,75 +6,114 @@ class HeidelbergAbfall extends IPSModule
     {
         parent::Create();
 
-        // Pfad zur ICS-Datei auf dem Windows-Rechner
-        $this->RegisterPropertyString("RemoteFile", "\\\\WINPC\\Freigabe\\abfall.ics");
-
-        // Lokaler Speicherort in Symcon
-        $this->RegisterPropertyString("LocalFile", IPS_GetKernelDir() . "abfall.ics");
+        // Properties
+        $this->RegisterPropertyString("FileName", "Abfallkalender2026.ics");
+        $this->RegisterPropertyInteger("IntervalDays", 1);
+        $this->RegisterPropertyBoolean("Active", false);
 
         // Variablen
-        $this->RegisterVariableString("Restmuell", "Restmüll");
-        $this->RegisterVariableString("Biomuell", "Biomüll");
-        $this->RegisterVariableString("Papier", "Papier");
-        $this->RegisterVariableString("GelbeTonne", "Gelbe Tonne");
+        $this->RegisterVariableString("Activated", "Modulstatus", "", 1);
+        $this->RegisterVariableString("Restmuell", "Restmüll", "", 2);
+        $this->RegisterVariableString("Biomuell", "Biomüll", "", 3);
+        $this->RegisterVariableString("Papier", "Papier", "", 4);
+        $this->RegisterVariableString("GelbeTonne", "Gelbe Tonne", "", 5);
 
-        // Tägliches Update
-        $this->RegisterTimer("UpdateTimer", 24 * 60 * 60 * 1000, "HDABF_Update(\$_IPS['TARGET']);");
+        // Icons für Kachel-Visualisierung
+        IPS_SetIcon($this->GetIDForIdent("Restmuell"), "trash-can");
+        IPS_SetIcon($this->GetIDForIdent("Biomuell"), "leaf");
+        IPS_SetIcon($this->GetIDForIdent("Papier"), "file");
+        IPS_SetIcon($this->GetIDForIdent("GelbeTonne"), "recycle");
+
+        // Timer für ICS-Update
+        $this->RegisterTimer("UpdateTimer", 0, "IPS_RunScriptText('IPS_RequestAction(' . \$_IPS['TARGET'] . ', \"RunUpdate\", 0);');");
+
+        // Timer für Müll-Erinnerung
+        $this->RegisterTimer("ReminderTimer", 0, "IPS_RunScriptText('IPS_RequestAction(' . \$_IPS['TARGET'] . ', \"RunReminder\", 0);');");
     }
 
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+
+        // Aktivierung
+        $active = $this->ReadPropertyBoolean("Active");
+        $days   = $this->ReadPropertyInteger("IntervalDays");
+
+        if ($active) {
+            $intervalMs = $days * 24 * 60 * 60 * 1000;
+            $this->SetTimerInterval("UpdateTimer", $intervalMs);
+            SetValueString($this->GetIDForIdent("Activated"), "Aktiv");
+        } else {
+            $this->SetTimerInterval("UpdateTimer", 0);
+            SetValueString($this->GetIDForIdent("Activated"), "Inaktiv");
+        }
+
+        // Reminder jeden Tag um 17:00
+        $target = strtotime("17:00");
+        $now = time();
+        $interval = $target - $now;
+        if ($interval < 0) {
+            $interval += 24 * 60 * 60;
+        }
+        $this->SetTimerInterval("ReminderTimer", $interval * 1000);
     }
 
+    // RequestAction für Timer
+    public function RequestAction($Ident, $Value)
+    {
+        switch ($Ident) {
+            case "RunUpdate":
+                $this->Update();
+                break;
+
+            case "RunReminder":
+                $this->DoReminder();
+                break;
+        }
+    }
+
+    // ICS verarbeiten
     public function Update()
     {
-        $remote = $this->ReadPropertyString("RemoteFile");
-        $local  = $this->ReadPropertyString("LocalFile");
+        $fileName = $this->ReadPropertyString("FileName");
+        $local = "/var/lib/symcon/modules/MyAbfallkalender/Abfallkalender/" . $fileName;
 
-        if (!file_exists($remote)) {
-            IPS_LogMessage("HeidelbergAbfall", "Remote ICS file not found: $remote");
+        if (!file_exists($local)) {
+            IPS_LogMessage("HeidelbergAbfall", "ICS-Datei nicht gefunden: $local");
             return;
         }
 
-        // Datei kopieren
-        copy($remote, $local);
-
-        // ICS parsen
         $events = $this->ParseICS($local);
+        if (!$events) {
+            IPS_LogMessage("HeidelbergAbfall", "Keine Events gefunden.");
+            return;
+        }
 
-        // Nächste Termine bestimmen
         $this->UpdateNextEvents($events);
     }
 
     private function ParseICS($file)
     {
         $content = file_get_contents($file);
-        $lines = explode("\n", $content);
+        if ($content === false) return false;
 
+        $lines = explode("\n", $content);
         $events = [];
         $current = [];
 
         foreach ($lines as $line) {
             $line = trim($line);
 
-            if ($line === "BEGIN:VEVENT") {
-                $current = [];
-            }
+            if ($line === "BEGIN:VEVENT") $current = [];
 
-            if (strpos($line, "DTSTART") === 0) {
-                $date = substr($line, strpos($line, ":") + 1);
-                $current["date"] = $date;
-            }
+            if (strpos($line, "DTSTART") === 0)
+                $current["date"] = substr($line, strpos($line, ":") + 1);
 
-            if (strpos($line, "SUMMARY:") === 0) {
-                $summary = substr($line, 8);
-                $current["type"] = $summary;
-            }
+            if (strpos($line, "SUMMARY:") === 0)
+                $current["type"] = substr($line, 8);
 
-            if ($line === "END:VEVENT") {
+            if ($line === "END:VEVENT" && isset($current["date"]) && isset($current["type"]))
                 $events[] = $current;
-            }
         }
 
         return $events;
@@ -96,24 +135,56 @@ class HeidelbergAbfall extends IPSModule
 
             $type = strtolower($e["type"]);
 
-            if (strpos($type, "rest") !== false && !$next["Restmüll"]) {
+            if (strpos($type, "rest") !== false && !$next["Restmüll"])
                 $next["Restmüll"] = $e["date"];
-            }
-            if (strpos($type, "bio") !== false && !$next["Biomüll"]) {
+
+            if (strpos($type, "bio") !== false && !$next["Biomüll"])
                 $next["Biomüll"] = $e["date"];
-            }
-            if (strpos($type, "papier") !== false && !$next["Papier"]) {
+
+            if (strpos($type, "papier") !== false && !$next["Papier"])
                 $next["Papier"] = $e["date"];
-            }
-            if (strpos($type, "gelb") !== false && !$next["Gelbe Tonne"]) {
+
+            if (strpos($type, "gelb") !== false && !$next["Gelbe Tonne"])
                 $next["Gelbe Tonne"] = $e["date"];
-            }
         }
 
-        // Variablen schreiben
-        SetValueString($this->GetIDForIdent("Restmuell"), $next["Restmüll"]);
-        SetValueString($this->GetIDForIdent("Biomuell"), $next["Biomüll"]);
-        SetValueString($this->GetIDForIdent("Papier"), $next["Papier"]);
-        SetValueString($this->GetIDForIdent("GelbeTonne"), $next["Gelbe Tonne"]);
+        SetValueString($this->GetIDForIdent("Restmuell"), $next["Restmüll"] ? $this->FormatDate($next["Restmüll"]) : "");
+        SetValueString($this->GetIDForIdent("Biomuell"), $next["Biomüll"] ? $this->FormatDate($next["Biomüll"]) : "");
+        SetValueString($this->GetIDForIdent("Papier"), $next["Papier"] ? $this->FormatDate($next["Papier"]) : "");
+        SetValueString($this->GetIDForIdent("GelbeTonne"), $next["Gelbe Tonne"] ? $this->FormatDate($next["Gelbe Tonne"]) : "");
+    }
+
+    private function FormatDate($icsDate)
+    {
+        $ts = strtotime($icsDate);
+        $tage = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+        return $tage[date("w", $ts)] . " " . date("j.n.Y", $ts);
+    }
+
+    // Popup am Vortag um 17:00
+    private function DoReminder()
+    {
+        $tomorrow = $this->FormatDate(date("Ymd", strtotime("+1 day")));
+
+        $rest = GetValueString($this->GetIDForIdent("Restmuell"));
+        $bio = GetValueString($this->GetIDForIdent("Biomuell"));
+        $papier = GetValueString($this->GetIDForIdent("Papier"));
+        $gelb = GetValueString($this->GetIDForIdent("GelbeTonne"));
+
+        $isTomorrowTrash =
+            strpos($rest, $tomorrow) !== false ||
+            strpos($bio, $tomorrow) !== false ||
+            strpos($papier, $tomorrow) !== false ||
+            strpos($gelb, $tomorrow) !== false;
+
+        if ($isTomorrowTrash) {
+            VISU_PostNotification(
+                27558,                        // VISU-Instanz
+                "Müll-Erinnerung",            // Titel
+                "Bitte den Müll rausstellen!",// Text
+                "Info",                       // Typ
+                57089                         // Ziel-Objekt
+            );
+        }
     }
 }
