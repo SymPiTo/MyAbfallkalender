@@ -1,7 +1,8 @@
 {
-  "id": "{F3A1C2D4-1234-4A00-ABCD-998877665544}",
-  "author": "pito",
-  "name": "Heidelberg Abfallkalender",
-  "url": "https://github.com/Torsten/HeidelbergAbfall",
+  "id": "{A1B2C3D4-1234-5678-9ABC-DEF012345678}",
+  "author": "Torsten",
+  "name": "MyAbfallkalender",
+  "url": "https://github.com/SymPiTo/MyAbfallkalender",
   "version": "1.0"
 }
+
