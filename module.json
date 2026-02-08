@@ -1,0 +1,11 @@
+{
+  "id": "{A1B2C3D4-ABF0-4F00-ABF0-1234567890AB}",
+  "name": "HeidelbergAbfall",
+  "type": 3,
+  "vendor": "pito",
+  "aliases": ["Abfallkalender Heidelberg"],
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "HDABF"
+}
