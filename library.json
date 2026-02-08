@@ -1,8 +1,13 @@
 {
-  "id": "{A1B2C3D4-1234-5678-9ABC-DEF012345678}",
-  "author": "Torsten",
-  "name": "MyAbfallkalender",
-  "url": "https://github.com/SymPiTo/MyAbfallkalender",
-  "version": "1.0"
+	"id": "{A1B2C3D4-1234-5678-9ABC-DEF012345678}",
+	"author": "PiTo",
+	"name": "MySymApps",
+	"url": "",
+	"compatibility": {
+    "version": "4.2",
+    "date": 1491343200
+	},
+	"version": "0.1",
+	"build": 0,
+	"date": 0
 }
-
