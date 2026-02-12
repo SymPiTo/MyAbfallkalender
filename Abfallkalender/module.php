@@ -24,11 +24,9 @@ class HeidelbergAbfall extends IPSModule
         IPS_SetIcon($this->GetIDForIdent("Papier"), "file");
         IPS_SetIcon($this->GetIDForIdent("GelbeTonne"), "recycle");
 
-        // Timer für ICS-Update
-        $this->RegisterTimer("UpdateTimer", 0, "IPS_RunScriptText('IPS_RequestAction(' . \$_IPS['TARGET'] . ', \"RunUpdate\", 0);');");
-
-        // Timer für Müll-Erinnerung
-        $this->RegisterTimer("ReminderTimer", 0, "IPS_RunScriptText('IPS_RequestAction(' . \$_IPS['TARGET'] . ', \"RunReminder\", 0);');");
+        // Timer korrekt registrieren
+        $this->RegisterTimer("UpdateTimer", 0, "IPS_RequestAction(\$_IPS['TARGET'], 'RunUpdate', 0);");
+        $this->RegisterTimer("ReminderTimer", 0, "IPS_RequestAction(\$_IPS['TARGET'], 'RunReminder', 0);");
     }
 
     public function ApplyChanges()
@@ -42,20 +40,16 @@ class HeidelbergAbfall extends IPSModule
         if ($active) {
             $intervalMs = $days * 24 * 60 * 60 * 1000;
             $this->SetTimerInterval("UpdateTimer", $intervalMs);
+            $this->ScheduleReminder();
             SetValueString($this->GetIDForIdent("Activated"), "Aktiv");
         } else {
             $this->SetTimerInterval("UpdateTimer", 0);
+            $this->SetTimerInterval("ReminderTimer", 0);
             SetValueString($this->GetIDForIdent("Activated"), "Inaktiv");
         }
 
-        // Reminder jeden Tag um 17:00
-        $target = strtotime("17:00");
-        $now = time();
-        $interval = $target - $now;
-        if ($interval < 0) {
-            $interval += 24 * 60 * 60;
-        }
-        $this->SetTimerInterval("ReminderTimer", $interval * 1000);
+        // Reminder neu planen
+        $this->ScheduleReminder();
     }
 
     // RequestAction für Timer
@@ -161,9 +155,31 @@ class HeidelbergAbfall extends IPSModule
         return $tage[date("w", $ts)] . " " . date("j.n.Y", $ts);
     }
 
+    // Reminder-Timer jeden Tag neu planen
+    private function ScheduleReminder()
+    {
+        $target = strtotime("17:00");
+        $now = time();
+        $interval = $target - $now;
+
+        if ($interval < 0) {
+            $interval += 24 * 60 * 60;
+        }
+
+        $this->SetTimerInterval("ReminderTimer", $interval * 1000);
+    }
+
     // Popup am Vortag um 17:00
     private function DoReminder()
     {
+        // Modul deaktiviert? → Keine Erinnerung ausführen 
+        if (!$this->ReadPropertyBoolean("Active")) 
+            { return; 
+        }
+            
+        // Reminder nach Ausführung neu planen
+        $this->ScheduleReminder();
+
         $tomorrow = $this->FormatDate(date("Ymd", strtotime("+1 day")));
 
         $rest = GetValueString($this->GetIDForIdent("Restmuell"));
@@ -179,11 +195,11 @@ class HeidelbergAbfall extends IPSModule
 
         if ($isTomorrowTrash) {
             VISU_PostNotification(
-                27558,                        // VISU-Instanz
-                "Müll-Erinnerung",            // Titel
-                "Bitte den Müll rausstellen!",// Text
-                "Info",                       // Typ
-                57089                         // Ziel-Objekt
+                27558,
+                "Müll-Erinnerung",
+                "Bitte den Müll rausstellen!",
+                "Info",
+                57089
             );
         }
     }

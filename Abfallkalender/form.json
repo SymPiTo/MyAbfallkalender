@@ -1,5 +1,10 @@
 {
   "elements": [
+    { 
+      "type": "CheckBox", 
+      "name": "Active", 
+      "caption": "Modul aktivieren" 
+    },
     {
       "type": "Label",
       "caption": "Bitte kopiere deine ICS-Datei manuell in folgenden Ordner:"
