@@ -142,10 +142,25 @@ class HeidelbergAbfall extends IPSModule
                 $next["Gelbe Tonne"] = $e["date"];
         }
 
-        SetValueString($this->GetIDForIdent("Restmuell"), $next["Restmüll"] ? $this->FormatDate($next["Restmüll"]) : "");
-        SetValueString($this->GetIDForIdent("Biomuell"), $next["Biomüll"] ? $this->FormatDate($next["Biomüll"]) : "");
-        SetValueString($this->GetIDForIdent("Papier"), $next["Papier"] ? $this->FormatDate($next["Papier"]) : "");
-        SetValueString($this->GetIDForIdent("GelbeTonne"), $next["Gelbe Tonne"] ? $this->FormatDate($next["Gelbe Tonne"]) : "");
+        $ids = [
+            'Restmuell' => $this->GetIDForIdent("Restmuell"),
+            'Biomuell'  => $this->GetIDForIdent("Biomuell"),
+            'Papier'    => $this->GetIDForIdent("Papier"),
+            'GelbeTonne'=> $this->GetIDForIdent("GelbeTonne")
+        ];
+
+        $values = [
+            'Restmuell' => $next["Restmüll"] ? $this->FormatDate($next["Restmüll"]) : "",
+            'Biomuell'  => $next["Biomüll"] ? $this->FormatDate($next["Biomüll"]) : "",
+            'Papier'    => $next["Papier"] ? $this->FormatDate($next["Papier"]) : "",
+            'GelbeTonne'=> $next["Gelbe Tonne"] ? $this->FormatDate($next["Gelbe Tonne"]) : ""
+        ];
+
+        foreach ($ids as $ident => $id) {
+            if ($id === 0) continue;
+            SetValueString($id, $values[$ident]);
+            IPS_SetHidden($id, $values[$ident] === "");
+        }
     }
 
     private function FormatDate($icsDate)
@@ -199,7 +214,7 @@ class HeidelbergAbfall extends IPSModule
                 "Müll-Erinnerung",
                 "Bitte den Müll rausstellen!",
                 "Info",
-                57089
+                28352
             );
         }
     }
